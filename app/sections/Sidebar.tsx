@@ -1,10 +1,10 @@
 'use client'
 
 import React from 'react'
-import { FiHome, FiMessageSquare, FiSearch, FiShield, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { FiHome, FiMessageSquare, FiSearch, FiShield, FiChevronLeft, FiChevronRight, FiPackage, FiActivity, FiAlertTriangle } from 'react-icons/fi'
 import { Button } from '@/components/ui/button'
 
-export type ScreenType = 'dashboard' | 'consultation' | 'literature' | 'admin'
+export type ScreenType = 'dashboard' | 'consultation' | 'literature' | 'drugs' | 'trials' | 'adverse' | 'admin'
 
 interface SidebarProps {
   currentScreen: ScreenType
@@ -17,6 +17,9 @@ const NAV_ITEMS: { id: ScreenType; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <FiHome size={20} /> },
   { id: 'consultation', label: 'Konzultace', icon: <FiMessageSquare size={20} /> },
   { id: 'literature', label: 'Literatura', icon: <FiSearch size={20} /> },
+  { id: 'drugs', label: 'Leky (SUKL)', icon: <FiPackage size={20} /> },
+  { id: 'trials', label: 'Klinicke studie', icon: <FiActivity size={20} /> },
+  { id: 'adverse', label: 'Nezadouci ucinky', icon: <FiAlertTriangle size={20} /> },
   { id: 'admin', label: 'Administrace', icon: <FiShield size={20} /> },
 ]
 

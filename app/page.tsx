@@ -12,6 +12,9 @@ import Sidebar, { type ScreenType } from './sections/Sidebar'
 import Dashboard from './sections/Dashboard'
 import PatientConsultation from './sections/PatientConsultation'
 import LiteratureSearch from './sections/LiteratureSearch'
+import DrugSearch from './sections/DrugSearch'
+import ClinicalTrialsSearch from './sections/ClinicalTrialsSearch'
+import AdverseEventsSearch from './sections/AdverseEventsSearch'
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -211,6 +214,9 @@ function AppContent() {
           </div>
         )}
         {screen === 'literature' && <LiteratureSearch />}
+        {screen === 'drugs' && <DrugSearch />}
+        {screen === 'trials' && <ClinicalTrialsSearch />}
+        {screen === 'adverse' && <AdverseEventsSearch />}
         {screen === 'admin' && <AdminPanel />}
       </div>
     </div>

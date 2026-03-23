@@ -24,7 +24,8 @@
       "type": "manager",
       "provider": "openai",
       "model": "gpt-4.1",
-      "managed_agents": ["69c1bbbde2d1507b5eeec9b5", "69c1bbbeecb6bf10bad7dd48"]
+      "managed_agents": ["69c1bbbde2d1507b5eeec9b5", "69c1bbbeecb6bf10bad7dd48"],
+      "enhanced": "BioAgents hypothesis-driven reasoning, reflection, citation chains, SUKL/PubMed/ClinicalTrials/OpenFDA awareness"
     },
     "patient_context": {
       "agent_id": "69c1bbbde2d1507b5eeec9b5",
@@ -40,7 +41,8 @@
       "type": "sub-agent",
       "provider": "perplexity",
       "model": "sonar-pro",
-      "has_knowledge_base": true
+      "has_knowledge_base": true,
+      "enhanced": "BioMCP progressive disclosure, cross-entity navigation, citation chain preservation, SUKL/PubMed/ClinicalTrials/OpenFDA hierarchy"
     },
     "literature_research": {
       "agent_id": "69c1bbbe715110120e535d80",
@@ -48,7 +50,8 @@
       "type": "independent",
       "provider": "perplexity",
       "model": "sonar-pro",
-      "has_knowledge_base": false
+      "has_knowledge_base": false,
+      "enhanced": "BioAgents hypothesis-driven search, PICO framework, cross-entity navigation, GRADE evidence scoring, SynthMode cards"
     }
   },
   "knowledge_base": {
