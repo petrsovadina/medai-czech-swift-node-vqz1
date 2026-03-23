@@ -60,7 +60,8 @@
     "name": "czech_medical_guidelines",
     "sources": [
       {"type": "website_crawl", "url": "https://build.fhir.org/ig/HL7-cz/cz-core/"},
-      {"type": "file_ingest", "url": "https://asset.lyzr.app/mQiFiMTN", "filename": "Benjamin_langchain.pdf"}
+      {"type": "file_ingest", "url": "https://asset.lyzr.app/mQiFiMTN", "filename": "Benjamin_langchain.pdf"},
+      {"type": "file_ingest", "url": "https://raw.githubusercontent.com/petrsovadina/klinicka-knowledge-base/main/data/knowledge_base_mvp.jsonl", "filename": "knowledge_base_mvp.jsonl", "description": "Klinicka Knowledge Base - 669 knowledge units on Czech ambulatory healthcare economics, reimbursements (uhradova vyhlaska 2026), operations, compliance, financial risks, and legislation"}
     ]
   },
   "database": {

@@ -15,6 +15,7 @@ import LiteratureSearch from './sections/LiteratureSearch'
 import DrugSearch from './sections/DrugSearch'
 import ClinicalTrialsSearch from './sections/ClinicalTrialsSearch'
 import AdverseEventsSearch from './sections/AdverseEventsSearch'
+import KnowledgeBaseExplorer from './sections/KnowledgeBaseExplorer'
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -217,6 +218,7 @@ function AppContent() {
         {screen === 'drugs' && <DrugSearch />}
         {screen === 'trials' && <ClinicalTrialsSearch />}
         {screen === 'adverse' && <AdverseEventsSearch />}
+        {screen === 'knowledge-base' && <KnowledgeBaseExplorer />}
         {screen === 'admin' && <AdminPanel />}
       </div>
     </div>
