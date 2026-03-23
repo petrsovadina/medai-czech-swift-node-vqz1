@@ -1,0 +1,78 @@
+{
+  "agent_name": "Clinical Coordinator",
+  "agent_id": "69c1bbdee2d1507b5eeec9b7",
+  "description": "Manager agent that coordinates patient context retrieval and medical knowledge search, synthesizes into QuickConsult/DeepConsult formatted responses",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "urgency": "string",
+    "format_type": "string",
+    "main_recommendation": "string",
+    "key_points": [
+      "string"
+    ],
+    "patient_context_summary": "string",
+    "clinical_analysis": "string",
+    "differential_diagnosis": [
+      "string"
+    ],
+    "recommended_approach": "string",
+    "pharmacotherapy": "string",
+    "citations": [
+      {
+        "id": "string",
+        "text": "string",
+        "pmid": "string",
+        "doi": "string",
+        "confidence_tier": "string"
+      }
+    ],
+    "warnings": [
+      "string"
+    ],
+    "auto_capture": [
+      {
+        "type": "string",
+        "code": "string",
+        "display": "string",
+        "value": "string"
+      }
+    ]
+  },
+  "example_response": {
+    "urgency": "sample string",
+    "format_type": "sample string",
+    "main_recommendation": "sample string",
+    "key_points": [
+      "sample string"
+    ],
+    "patient_context_summary": "sample string",
+    "clinical_analysis": "sample string",
+    "differential_diagnosis": [
+      "sample string"
+    ],
+    "recommended_approach": "sample string",
+    "pharmacotherapy": "sample string",
+    "citations": [
+      {
+        "id": "sample string",
+        "text": "sample string",
+        "pmid": "sample string",
+        "doi": "sample string",
+        "confidence_tier": "sample string"
+      }
+    ],
+    "warnings": [
+      "sample string"
+    ],
+    "auto_capture": [
+      {
+        "type": "sample string",
+        "code": "sample string",
+        "display": "sample string",
+        "value": "sample string"
+      }
+    ]
+  }
+}

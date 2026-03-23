@@ -1,0 +1,421 @@
+'use client'
+
+import React, { useState, useEffect, useRef } from 'react'
+import { FiSend, FiChevronDown, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiHeart, FiActivity, FiFileText, FiArrowLeft } from 'react-icons/fi'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { callAIAgent } from '@/lib/aiAgent'
+
+const AGENT_ID = '69c1bbdee2d1507b5eeec9b7'
+
+interface ClinicalResponse {
+  urgency?: string
+  format_type?: string
+  main_recommendation?: string
+  key_points?: string[]
+  patient_context_summary?: string
+  clinical_analysis?: string
+  differential_diagnosis?: string[]
+  recommended_approach?: string
+  pharmacotherapy?: string
+  citations?: { id?: string; text?: string; pmid?: string; doi?: string; confidence_tier?: string }[]
+  warnings?: string[]
+  auto_capture?: { type?: string; code?: string; display?: string; value?: string }[]
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  parsed?: ClinicalResponse
+  timestamp: string
+}
+
+interface PatientData {
+  patient?: any
+  conditions?: any[]
+  medications?: any[]
+  observations?: any[]
+  allergies?: any[]
+  encounters?: any[]
+}
+
+interface PatientConsultationProps {
+  patientId: string
+  onBack: () => void
+}
+
+function renderMarkdown(text: string) {
+  if (!text) return null
+  return (
+    <div className="space-y-1.5">
+      {text.split('\n').map((line, i) => {
+        if (line.startsWith('### ')) return <h4 key={i} className="font-semibold text-sm mt-2 mb-1">{line.slice(4)}</h4>
+        if (line.startsWith('## ')) return <h3 key={i} className="font-semibold text-base mt-2 mb-1">{line.slice(3)}</h3>
+        if (line.startsWith('# ')) return <h2 key={i} className="font-bold text-lg mt-3 mb-1">{line.slice(2)}</h2>
+        if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-4 list-disc text-sm">{formatInline(line.slice(2))}</li>
+        if (/^\d+\.\s/.test(line)) return <li key={i} className="ml-4 list-decimal text-sm">{formatInline(line.replace(/^\d+\.\s/, ''))}</li>
+        if (!line.trim()) return <div key={i} className="h-1" />
+        return <p key={i} className="text-sm">{formatInline(line)}</p>
+      })}
+    </div>
+  )
+}
+
+function formatInline(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g)
+  if (parts.length === 1) return text
+  return parts.map((part, i) => i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part)
+}
+
+function urgencyColor(u?: string): string {
+  const val = (u ?? '').toUpperCase()
+  if (val.includes('URGENT') || val.includes('KRITICK')) return 'bg-red-100 text-red-800 border-red-200'
+  if (val.includes('VYSOK') || val.includes('HIGH')) return 'bg-orange-100 text-orange-800 border-orange-200'
+  if (val.includes('STANDARD') || val.includes('MEDIUM')) return 'bg-blue-100 text-blue-800 border-blue-200'
+  return 'bg-gray-100 text-gray-700 border-gray-200'
+}
+
+function CollapsibleSection({ title, icon, children, defaultOpen = false }: { title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors">
+        {icon}
+        <span className="flex-1 text-left">{title}</span>
+        {open ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1">{children}</div>}
+    </div>
+  )
+}
+
+export default function PatientConsultation({ patientId, onBack }: PatientConsultationProps) {
+  const [patientData, setPatientData] = useState<PatientData>({})
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [consultMode, setConsultMode] = useState<'quick' | 'deep'>('quick')
+  const [pendingCaptures, setPendingCaptures] = useState<ClinicalResponse['auto_capture']>([])
+  const [patientLoading, setPatientLoading] = useState(true)
+  const [activeAgent, setActiveAgent] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (patientId) loadPatientData()
+  }, [patientId])
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [messages])
+
+  const loadPatientData = async () => {
+    setPatientLoading(true)
+    try {
+      const res = await fetch(`/api/patients/${patientId}`)
+      const data = await res.json()
+      if (data?.success) setPatientData(data.data ?? {})
+    } catch { /* ignore */ }
+    setPatientLoading(false)
+  }
+
+  const buildContext = () => {
+    const conds = Array.isArray(patientData?.conditions) ? patientData.conditions.map((c: any) => c?.display ?? '').filter(Boolean).join(', ') : ''
+    const meds = Array.isArray(patientData?.medications) ? patientData.medications.map((m: any) => `${m?.display ?? ''} ${m?.dosage ?? ''}`).filter(Boolean).join(', ') : ''
+    const allergies = Array.isArray(patientData?.allergies) ? patientData.allergies.map((a: any) => a?.display ?? '').filter(Boolean).join(', ') : ''
+    let ctx = ''
+    if (conds) ctx += `Diagnozy: ${conds}. `
+    if (meds) ctx += `Leky: ${meds}. `
+    if (allergies) ctx += `Alergie: ${allergies}. `
+    return ctx
+  }
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return
+    const userMsg = input.trim()
+    setInput('')
+    const now = new Date().toISOString()
+    setMessages((prev) => [...prev, { role: 'user', content: userMsg, timestamp: now }])
+    setLoading(true)
+    setActiveAgent(AGENT_ID)
+
+    try {
+      const ctx = buildContext()
+      const fullMessage = `${ctx ? `Kontext pacienta: ${ctx}\n\n` : ''}Typ konzultace: ${consultMode === 'deep' ? 'DeepConsult' : 'QuickConsult'}\n\nDotaz: ${userMsg}`
+      const result = await callAIAgent(fullMessage, AGENT_ID)
+
+      let parsed: ClinicalResponse = {}
+      if (result?.success) {
+        const raw = result?.response?.result
+        if (typeof raw === 'string') {
+          try { parsed = JSON.parse(raw) } catch { parsed = { main_recommendation: raw } }
+        } else if (raw && typeof raw === 'object') {
+          parsed = raw as ClinicalResponse
+        }
+      }
+
+      const captures = Array.isArray(parsed?.auto_capture) ? parsed.auto_capture : []
+      if (captures.length > 0) setPendingCaptures(captures)
+
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: parsed?.main_recommendation ?? result?.error ?? 'Zadna odpoved',
+        parsed,
+        timestamp: new Date().toISOString(),
+      }])
+
+      // Audit log
+      fetch('/api/audit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'consultation', resource_type: 'patient', resource_id: patientId, timestamp: new Date().toISOString() }),
+      }).catch(() => {})
+    } catch {
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Chyba pri komunikaci s agentem', timestamp: new Date().toISOString() }])
+    }
+    setLoading(false)
+    setActiveAgent('')
+  }
+
+  const handleSaveCaptures = async () => {
+    if (!Array.isArray(pendingCaptures)) return
+    for (const item of pendingCaptures) {
+      const t = item?.type?.toLowerCase() ?? ''
+      let endpoint = ''
+      let body: any = { patient_id: patientId }
+      if (t.includes('condition') || t.includes('diagnos')) {
+        endpoint = '/api/patient-conditions'
+        body = { ...body, code: item?.code, display: item?.display, clinical_status: 'active' }
+      } else if (t.includes('medic') || t.includes('lek')) {
+        endpoint = '/api/patient-medications'
+        body = { ...body, medication_code: item?.code, display: item?.display, dosage: item?.value }
+      } else if (t.includes('allerg')) {
+        endpoint = '/api/patient-allergies'
+        body = { ...body, substance_code: item?.code, display: item?.display }
+      } else if (t.includes('observ')) {
+        endpoint = '/api/patient-observations'
+        body = { ...body, code: item?.code, display: item?.display, value: item?.value }
+      }
+      if (endpoint) {
+        await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
+      }
+    }
+    setPendingCaptures([])
+    loadPatientData()
+  }
+
+  const conditions = Array.isArray(patientData?.conditions) ? patientData.conditions : []
+  const medications = Array.isArray(patientData?.medications) ? patientData.medications : []
+  const allergies = Array.isArray(patientData?.allergies) ? patientData.allergies : []
+  const observations = Array.isArray(patientData?.observations) ? patientData.observations : []
+  const lastCitations = messages.filter((m) => m.role === 'assistant').slice(-1)[0]?.parsed?.citations
+
+  return (
+    <div className="flex-1 flex overflow-hidden">
+      {/* Left sidebar - Patient context */}
+      <div className="w-64 border-r border-border bg-card overflow-y-auto p-3 space-y-3 hidden lg:block">
+        <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 text-xs">
+          <FiArrowLeft size={14} className="mr-1" /> Zpet
+        </Button>
+        <div className="text-sm font-medium mb-2">{patientData?.patient?.display_name ?? 'Pacient'}</div>
+
+        <CollapsibleSection title={`Diagnozy (${conditions.length})`} icon={<FiActivity size={14} />} defaultOpen>
+          {conditions.length === 0 ? <p className="text-xs text-muted-foreground">Zadne zaznamy</p> : conditions.map((c: any, i: number) => (
+            <div key={i} className="text-xs py-1 border-b border-border last:border-0">
+              <span className="font-medium">{c?.display ?? 'N/A'}</span>
+              {c?.clinical_status && <Badge variant="outline" className="ml-1 text-[10px] py-0">{c.clinical_status}</Badge>}
+            </div>
+          ))}
+        </CollapsibleSection>
+
+        <CollapsibleSection title={`Leky (${medications.length})`} icon={<FiHeart size={14} />}>
+          {medications.length === 0 ? <p className="text-xs text-muted-foreground">Zadne zaznamy</p> : medications.map((m: any, i: number) => (
+            <div key={i} className="text-xs py-1 border-b border-border last:border-0">
+              <span className="font-medium">{m?.display ?? 'N/A'}</span>
+              {m?.dosage && <span className="text-muted-foreground ml-1">{m.dosage}</span>}
+            </div>
+          ))}
+        </CollapsibleSection>
+
+        <CollapsibleSection title={`Alergie (${allergies.length})`} icon={<FiAlertTriangle size={14} />}>
+          {allergies.length === 0 ? <p className="text-xs text-muted-foreground">Zadne zaznamy</p> : allergies.map((a: any, i: number) => (
+            <div key={i} className="text-xs py-1 border-b border-border last:border-0">
+              <span className="font-medium">{a?.display ?? 'N/A'}</span>
+              {a?.criticality && <Badge variant="destructive" className="ml-1 text-[10px] py-0">{a.criticality}</Badge>}
+            </div>
+          ))}
+        </CollapsibleSection>
+
+        <CollapsibleSection title={`Observace (${observations.length})`} icon={<FiFileText size={14} />}>
+          {observations.length === 0 ? <p className="text-xs text-muted-foreground">Zadne zaznamy</p> : observations.map((o: any, i: number) => (
+            <div key={i} className="text-xs py-1 border-b border-border last:border-0">
+              <span className="font-medium">{o?.display ?? 'N/A'}</span>
+              {o?.value && <span className="text-muted-foreground ml-1">{o.value} {o?.unit ?? ''}</span>}
+            </div>
+          ))}
+        </CollapsibleSection>
+
+        {activeAgent && (
+          <div className="mt-4 p-2 rounded-lg bg-secondary">
+            <p className="text-[10px] text-muted-foreground">Aktivni agent</p>
+            <p className="text-xs font-medium">Clinical Coordinator</p>
+            <div className="w-full h-1 bg-muted rounded-full mt-1 overflow-hidden">
+              <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Center - Chat */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
+          <Button variant="ghost" size="sm" onClick={onBack} className="lg:hidden"><FiArrowLeft size={16} /></Button>
+          <h2 className="text-sm font-semibold flex-1">{patientData?.patient?.display_name ?? 'Konzultace'}</h2>
+          <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+            <button onClick={() => setConsultMode('quick')} className={`px-3 py-1 text-xs rounded-md transition-colors ${consultMode === 'quick' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}>Quick</button>
+            <button onClick={() => setConsultMode('deep')} className={`px-3 py-1 text-xs rounded-md transition-colors ${consultMode === 'deep' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}>Deep</button>
+          </div>
+        </div>
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <FiMessageSquareIcon size={40} className="mx-auto mb-4 opacity-30" />
+              <p className="text-sm">Zahajte konzultaci</p>
+              <p className="text-xs mt-1">Zadejte klinicky dotaz nize</p>
+            </div>
+          )}
+
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-xl px-4 py-3 ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'}`}>
+                {msg.role === 'user' ? (
+                  <p className="text-sm">{msg.content}</p>
+                ) : msg.parsed?.main_recommendation ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {msg.parsed?.urgency && <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${urgencyColor(msg.parsed.urgency)}`}>{msg.parsed.urgency}</span>}
+                      {msg.parsed?.format_type && <Badge variant="outline" className="text-[10px]">{msg.parsed.format_type}</Badge>}
+                    </div>
+                    <div className="text-sm font-medium">{renderMarkdown(msg.parsed.main_recommendation)}</div>
+                    {Array.isArray(msg.parsed?.key_points) && msg.parsed.key_points.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Klicove body:</p>
+                        <ul className="space-y-0.5">{msg.parsed.key_points.map((kp, ki) => <li key={ki} className="text-xs ml-3 list-disc">{kp}</li>)}</ul>
+                      </div>
+                    )}
+                    {msg.parsed?.patient_context_summary && (
+                      <div className="text-xs bg-secondary rounded-lg p-2">{renderMarkdown(msg.parsed.patient_context_summary)}</div>
+                    )}
+                    {msg.parsed?.clinical_analysis && (
+                      <div><p className="text-xs font-medium text-muted-foreground mb-1">Klinicka analyza:</p>{renderMarkdown(msg.parsed.clinical_analysis)}</div>
+                    )}
+                    {Array.isArray(msg.parsed?.differential_diagnosis) && msg.parsed.differential_diagnosis.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Diferencialni diagnoza:</p>
+                        <ul className="space-y-0.5">{msg.parsed.differential_diagnosis.map((d, di) => <li key={di} className="text-xs ml-3 list-disc">{d}</li>)}</ul>
+                      </div>
+                    )}
+                    {msg.parsed?.recommended_approach && (
+                      <div><p className="text-xs font-medium text-muted-foreground mb-1">Doporuceny postup:</p>{renderMarkdown(msg.parsed.recommended_approach)}</div>
+                    )}
+                    {msg.parsed?.pharmacotherapy && (
+                      <div><p className="text-xs font-medium text-muted-foreground mb-1">Farmakoterapie:</p>{renderMarkdown(msg.parsed.pharmacotherapy)}</div>
+                    )}
+                    {Array.isArray(msg.parsed?.warnings) && msg.parsed.warnings.length > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                        <p className="text-xs font-medium text-red-800 mb-1 flex items-center gap-1"><FiAlertTriangle size={12} /> Varovani:</p>
+                        {msg.parsed.warnings.map((w, wi) => <p key={wi} className="text-xs text-red-700">{w}</p>)}
+                      </div>
+                    )}
+                    {Array.isArray(msg.parsed?.citations) && msg.parsed.citations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {msg.parsed.citations.map((c, ci) => (
+                          <span key={ci} className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded cursor-default" title={c?.text ?? ''}>
+                            [{c?.id ?? ci + 1}]
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm">{renderMarkdown(msg.content)}</div>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-2">{new Date(msg.timestamp).toLocaleTimeString('cs-CZ')}</p>
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-card border border-border rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Analyzuji...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Auto-capture banner */}
+        {Array.isArray(pendingCaptures) && pendingCaptures.length > 0 && (
+          <div className="px-4 py-2 bg-blue-50 border-t border-blue-200 flex items-center gap-3">
+            <span className="text-xs text-blue-800 flex-1">Nova data detekovana ({pendingCaptures.length} polozek) -- Ulozit?</span>
+            <Button size="sm" variant="default" onClick={handleSaveCaptures} className="h-7 text-xs"><FiCheck size={12} className="mr-1" />Ulozit</Button>
+            <Button size="sm" variant="ghost" onClick={() => setPendingCaptures([])} className="h-7 text-xs"><FiX size={12} /></Button>
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="p-4 border-t border-border bg-card">
+          <div className="flex items-end gap-2">
+            <Textarea
+              placeholder="Zadejte klinicky dotaz..."
+              className="min-h-[44px] max-h-32 resize-none text-sm"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            />
+            <Button onClick={handleSend} disabled={loading || !input.trim()} size="sm" className="h-11 px-4">
+              <FiSend size={16} />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right sidebar - Citations */}
+      <div className="w-56 border-l border-border bg-card overflow-y-auto p-3 hidden xl:block">
+        <h3 className="text-xs font-medium text-muted-foreground mb-3">Zdroje</h3>
+        {Array.isArray(lastCitations) && lastCitations.length > 0 ? lastCitations.map((c, ci) => (
+          <Card key={ci} className="mb-2">
+            <CardContent className="p-2">
+              <p className="text-xs font-medium mb-1">{c?.text ?? `Zdroj ${ci + 1}`}</p>
+              <div className="flex flex-wrap gap-1">
+                {c?.confidence_tier && <Badge variant="outline" className="text-[10px] py-0">{c.confidence_tier}</Badge>}
+                {c?.pmid && <a href={`https://pubmed.ncbi.nlm.nih.gov/${c.pmid}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:underline">PMID: {c.pmid}</a>}
+                {c?.doi && <a href={`https://doi.org/${c.doi}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:underline">DOI</a>}
+              </div>
+            </CardContent>
+          </Card>
+        )) : (
+          <p className="text-xs text-muted-foreground">Zdroje se zobrazi po konzultaci</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FiMessageSquareIcon(props: { size: number; className?: string }) {
+  return (
+    <svg width={props.size} height={props.size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}

@@ -1,0 +1,46 @@
+{
+  "agent_name": "Patient Context Agent",
+  "agent_id": "69c1bbbde2d1507b5eeec9b5",
+  "description": "Retrieves and summarizes patient FHIR-structured clinical data",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "patient_summary": "string",
+    "active_conditions": [
+      {
+        "code": "string",
+        "display": "string",
+        "status": "string",
+        "onset": "string",
+        "severity": "string"
+      }
+    ],
+    "current_medications": [
+      {
+        "code": "string",
+        "display": "string",
+        "dosage": "string",
+        "status": "string"
+      }
+    ],
+    "allergies": [
+      {
+        "substance": "string",
+        "criticality": "string",
+        "reaction": "string"
+      }
+    ],
+    "recent_observations": [
+      {
+        "code": "string",
+        "display": "string",
+        "value": "string",
+        "unit": "string",
+        "date": "string",
+        "flag": "string"
+      }
+    ],
+    "warnings": ["string"]
+  }
+}

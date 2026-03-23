@@ -1,0 +1,37 @@
+{
+  "agent_name": "Medical Knowledge Agent",
+  "agent_id": "69c1bbbeecb6bf10bad7dd48",
+  "description": "Searches Czech clinical guidelines KB and current medical literature for evidence-based answers with PMID/DOI citations",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "answer": "string",
+    "evidence_summary": "string",
+    "citations": [
+      {
+        "id": "string",
+        "authors": "string",
+        "title": "string",
+        "journal": "string",
+        "year": "string",
+        "pmid": "string",
+        "doi": "string",
+        "confidence_tier": "string"
+      }
+    ],
+    "czech_guidelines": [
+      {
+        "source": "string",
+        "recommendation": "string",
+        "evidence_level": "string"
+      }
+    ],
+    "drug_info": {
+      "sukl_status": "string",
+      "vzp_group": "string",
+      "interactions": "string"
+    },
+    "warnings": ["string"]
+  }
+}

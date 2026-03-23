@@ -1,0 +1,71 @@
+{
+  "app_name": "Czech MedAI",
+  "workflow": {
+    "nodes": [
+      {"id": "input_node", "type": "Input", "label": "Doctor Query", "nodeCategory": "input"},
+      {"id": "clinical_coordinator", "type": "Agent", "label": "Clinical Coordinator", "nodeCategory": "agent"},
+      {"id": "patient_context", "type": "Agent", "label": "Patient Context Agent", "nodeCategory": "agent"},
+      {"id": "medical_knowledge", "type": "Agent", "label": "Medical Knowledge Agent", "nodeCategory": "agent"},
+      {"id": "literature_research", "type": "Agent", "label": "Literature Research Agent", "nodeCategory": "agent"},
+      {"id": "output_node", "type": "Output", "label": "Clinical Response", "nodeCategory": "end"}
+    ],
+    "edges": [
+      {"source": "input_node", "target": "clinical_coordinator"},
+      {"source": "clinical_coordinator", "target": "patient_context"},
+      {"source": "clinical_coordinator", "target": "medical_knowledge"},
+      {"source": "clinical_coordinator", "target": "output_node"},
+      {"source": "input_node", "target": "literature_research"}
+    ]
+  },
+  "agents": {
+    "clinical_coordinator": {
+      "agent_id": "69c1bbdee2d1507b5eeec9b7",
+      "name": "Clinical Coordinator",
+      "type": "manager",
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "managed_agents": ["69c1bbbde2d1507b5eeec9b5", "69c1bbbeecb6bf10bad7dd48"]
+    },
+    "patient_context": {
+      "agent_id": "69c1bbbde2d1507b5eeec9b5",
+      "name": "Patient Context Agent",
+      "type": "sub-agent",
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "has_knowledge_base": true
+    },
+    "medical_knowledge": {
+      "agent_id": "69c1bbbeecb6bf10bad7dd48",
+      "name": "Medical Knowledge Agent",
+      "type": "sub-agent",
+      "provider": "perplexity",
+      "model": "sonar-pro",
+      "has_knowledge_base": true
+    },
+    "literature_research": {
+      "agent_id": "69c1bbbe715110120e535d80",
+      "name": "Literature Research Agent",
+      "type": "independent",
+      "provider": "perplexity",
+      "model": "sonar-pro",
+      "has_knowledge_base": false
+    }
+  },
+  "knowledge_base": {
+    "rag_id": "69c1baefbea8db3412a6d28b",
+    "rag_name": "czechmedicalguidelinesh5ij",
+    "name": "czech_medical_guidelines",
+    "sources": [
+      {"type": "website_crawl", "url": "https://build.fhir.org/ig/HL7-cz/cz-core/"},
+      {"type": "file_ingest", "url": "https://asset.lyzr.app/mQiFiMTN", "filename": "Benjamin_langchain.pdf"}
+    ]
+  },
+  "database": {
+    "db_name": "app_medai-czech-swift-node-vqz1",
+    "collections": [
+      "users", "patients", "patient_conditions", "patient_medications",
+      "patient_observations", "patient_allergies", "patient_encounters",
+      "patient_documents", "audit_logs", "session_history"
+    ]
+  }
+}

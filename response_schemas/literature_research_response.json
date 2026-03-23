@@ -1,0 +1,30 @@
+{
+  "agent_name": "Literature Research Agent",
+  "agent_id": "69c1bbbe715110120e535d80",
+  "description": "Independently searches and synthesizes PubMed/medical literature, producing SynthMode card-based summaries",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "topic": "string",
+    "search_strategy": "string",
+    "overall_summary": "string",
+    "studies": [
+      {
+        "title": "string",
+        "authors": "string",
+        "journal": "string",
+        "year": "string",
+        "study_design": "string",
+        "sample_size": "string",
+        "key_findings": "string",
+        "limitations": "string",
+        "clinical_implications": "string",
+        "pmid": "string",
+        "doi": "string"
+      }
+    ],
+    "conflicting_evidence": "string",
+    "total_studies_found": "string"
+  }
+}
