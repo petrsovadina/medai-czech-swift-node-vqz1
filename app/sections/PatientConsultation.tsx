@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { FiSend, FiChevronDown, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiHeart, FiActivity, FiFileText, FiArrowLeft, FiShield, FiClock, FiInfo } from 'react-icons/fi'
+import { FiSend, FiChevronDown, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiHeart, FiActivity, FiFileText, FiArrowLeft, FiShield, FiClock, FiInfo, FiEdit2 } from 'react-icons/fi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -187,7 +187,15 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
       const modeInstructions = consultMode === 'deep'
         ? 'Typ konzultace: DeepConsult (1000-2500 znaku, hloubkova analyza, ceske guidelines vs. mezinarodni, terapeuticke moznosti s davkovanim/NU/VZP uhradou, bezpecnostni info, rozhodovaci ramec)'
         : 'Typ konzultace: QuickConsult (200-400 znaku, prima odpoved + 3 klicove body + citace + disclaimer)'
-      const fullMessage = `${ctx ? `Kontext pacienta: ${ctx}\n\n` : ''}${modeInstructions}\n\nDotaz: ${userMsg}`
+
+      // Build multi-turn conversation history for context (last 6 exchanges max)
+      const recentHistory = messages.slice(-6).map((m) => {
+        if (m.role === 'user') return `Lekar: ${m.content}`
+        return `Asistent: ${m.parsed?.main_recommendation?.slice(0, 300) ?? m.content.slice(0, 300)}`
+      }).join('\n')
+
+      const historyBlock = recentHistory ? `\nHistorie konverzace:\n${recentHistory}\n\n` : ''
+      const fullMessage = `${ctx ? `Kontext pacienta: ${ctx}\n\n` : ''}${modeInstructions}${historyBlock}\nAktualni dotaz: ${userMsg}`
       const result = await callAIAgent(fullMessage, AGENT_ID)
 
       let parsed: ClinicalResponse = {}
@@ -349,7 +357,7 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground">
               <FiMessageSquareIcon size={40} className="mx-auto mb-4 opacity-30" />
               <p className="text-sm font-medium">Zahajte konzultaci</p>
               <p className="text-xs mt-1">Zadejte klinicky dotaz nize</p>
@@ -361,6 +369,24 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
                 <div className="text-left p-3 rounded-lg border border-border bg-card max-w-[200px]">
                   <p className="text-[10px] font-medium mb-1">DeepConsult</p>
                   <p className="text-[10px] text-muted-foreground">1000-2500 znaku, 3-5 min. Hloubkova analyza s guidelines.</p>
+                </div>
+              </div>
+              <div className="mt-6 max-w-md mx-auto">
+                <p className="text-[10px] font-medium mb-2 text-left">Priklad dotazu:</p>
+                <div className="space-y-1.5">
+                  {[
+                    'Jake jsou moznosti eskalace lecby u DM2 pri nedostatecne kompenzaci na metforminu?',
+                    'Diferencialni diagnostika bolesti na hrudi u 74lete zeny s normalnim EKG',
+                    'Interakce warfarinu s novymi ATB — co zkontrolovat?',
+                  ].map((q, qi) => (
+                    <button
+                      key={qi}
+                      onClick={() => { setInput(q); setConsultMode(qi === 1 ? 'deep' : 'quick') }}
+                      className="w-full text-left p-2 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-xs"
+                    >
+                      {q}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -485,8 +511,8 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-xl px-4 py-3">
-                <div className="flex items-center gap-2">
+              <div className="bg-card border border-border rounded-xl px-4 py-3 min-w-[280px]">
+                <div className="flex items-center gap-2 mb-2">
                   <div className="flex gap-1">
                     <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -496,6 +522,20 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
                     {consultMode === 'deep' ? 'Provadim hloubkovou analyzu...' : 'Analyzuji...'}
                   </span>
                 </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] text-muted-foreground">Clinical Coordinator — orchestrace</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '300ms' }} />
+                    <span className="text-[10px] text-muted-foreground">Patient Context Agent — nacitani dat pacienta</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '600ms' }} />
+                    <span className="text-[10px] text-muted-foreground">Medical Knowledge Agent — vyhledavani dukazu</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -503,10 +543,49 @@ export default function PatientConsultation({ patientId, onBack }: PatientConsul
 
         {/* Auto-capture banner */}
         {Array.isArray(pendingCaptures) && pendingCaptures.length > 0 && (
-          <div className="px-4 py-2 bg-blue-50 border-t border-blue-200 flex items-center gap-3">
-            <span className="text-xs text-blue-800 flex-1">Nova data detekovana ({pendingCaptures.length} polozek) -- Ulozit do karty pacienta?</span>
-            <Button size="sm" variant="default" onClick={handleSaveCaptures} className="h-7 text-xs"><FiCheck size={12} className="mr-1" />Ulozit</Button>
-            <Button size="sm" variant="ghost" onClick={() => setPendingCaptures([])} className="h-7 text-xs"><FiX size={12} /></Button>
+          <div className="px-4 py-2 bg-blue-50 border-t border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <FiActivity size={14} className="text-blue-700" />
+              <span className="text-xs font-medium text-blue-800 flex-1">Nova klinicka data detekovana ({pendingCaptures.length})</span>
+              <Button size="sm" variant="default" onClick={handleSaveCaptures} className="h-7 text-xs"><FiCheck size={12} className="mr-1" />Ulozit vse</Button>
+              <Button size="sm" variant="ghost" onClick={() => setPendingCaptures([])} className="h-7 text-xs"><FiX size={12} /></Button>
+            </div>
+            <div className="space-y-1">
+              {pendingCaptures.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-xs bg-white/60 rounded px-2 py-1.5">
+                  <Badge variant="outline" className="text-[9px] py-0 shrink-0">{item?.type ?? 'data'}</Badge>
+                  <input
+                    className="flex-1 bg-transparent border-none outline-none text-xs"
+                    value={item?.display ?? ''}
+                    onChange={(e) => {
+                      const updated = [...(pendingCaptures ?? [])]
+                      if (updated[idx]) updated[idx] = { ...updated[idx], display: e.target.value }
+                      setPendingCaptures(updated)
+                    }}
+                  />
+                  {item?.value && (
+                    <input
+                      className="w-24 bg-transparent border-b border-blue-200 outline-none text-xs text-muted-foreground"
+                      value={item.value}
+                      onChange={(e) => {
+                        const updated = [...(pendingCaptures ?? [])]
+                        if (updated[idx]) updated[idx] = { ...updated[idx], value: e.target.value }
+                        setPendingCaptures(updated)
+                      }}
+                    />
+                  )}
+                  <button
+                    onClick={() => {
+                      const updated = (pendingCaptures ?? []).filter((_, i) => i !== idx)
+                      setPendingCaptures(updated)
+                    }}
+                    className="p-0.5 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                  >
+                    <FiX size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
