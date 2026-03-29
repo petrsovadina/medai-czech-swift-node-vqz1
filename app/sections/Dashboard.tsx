@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { FiPlus, FiSearch, FiActivity, FiUsers, FiChevronRight, FiClock, FiMessageSquare, FiBookOpen } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiActivity, FiUsers, FiChevronRight, FiClock, FiMessageSquare, FiBookOpen, FiDownload, FiTrash2, FiShield } from 'react-icons/fi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -115,11 +115,57 @@ export default function Dashboard({ patients, onSelectPatient, onRefreshPatients
     }
   }
 
+  const [gdprAction, setGdprAction] = useState<{ type: 'export' | 'delete'; id: string; name: string } | null>(null)
+  const [gdprLoading, setGdprLoading] = useState(false)
+  const [gdprResult, setGdprResult] = useState<string | null>(null)
+
   // Get patient name by id
   const getPatientName = (pid?: string) => {
     if (!pid) return 'Neznamy'
     const p = patients.find((pt) => pt._id === pid)
     return p?.display_name ?? p?.patient_hash?.slice(0, 8) ?? pid.slice(0, 8)
+  }
+
+  const handleGdprExport = async (patientId: string) => {
+    setGdprLoading(true)
+    try {
+      const res = await fetch(`/api/patients/${patientId}/gdpr`)
+      const data = await res.json()
+      if (data?.success) {
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `patient_export_${patientId.slice(0, 8)}_${new Date().toISOString().split('T')[0]}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        setGdprResult('Data uspesne exportovana')
+      } else {
+        setGdprResult(data?.error ?? 'Chyba pri exportu')
+      }
+    } catch {
+      setGdprResult('Sitova chyba')
+    }
+    setGdprLoading(false)
+    setGdprAction(null)
+  }
+
+  const handleGdprDelete = async (patientId: string) => {
+    setGdprLoading(true)
+    try {
+      const res = await fetch(`/api/patients/${patientId}/gdpr`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data?.success) {
+        setGdprResult('Vsechna data pacienta byla smazana (GDPR pravo byt zapomenut)')
+        onRefreshPatients()
+      } else {
+        setGdprResult(data?.error ?? 'Chyba pri mazani')
+      }
+    } catch {
+      setGdprResult('Sitova chyba')
+    }
+    setGdprLoading(false)
+    setGdprAction(null)
   }
 
   return (
@@ -234,19 +280,36 @@ export default function Dashboard({ patients, onSelectPatient, onRefreshPatients
               ) : (
                 <div className="space-y-2">
                   {filtered.map((p) => (
-                    <button
-                      key={p._id}
-                      onClick={() => { if (!showSample) onSelectPatient(p._id) }}
-                      className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary transition-colors text-left"
-                    >
-                      <div>
+                    <div key={p._id} className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-secondary transition-colors">
+                      <button
+                        onClick={() => { if (!showSample) onSelectPatient(p._id) }}
+                        className="flex-1 text-left"
+                      >
                         <p className="text-sm font-medium">{p?.display_name || p?.patient_hash || 'Bez jmena'}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {p?.createdAt ? new Date(p.createdAt).toLocaleDateString('cs-CZ') : ''}
                         </p>
-                      </div>
+                      </button>
+                      {!showSample && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setGdprAction({ type: 'export', id: p._id, name: p?.display_name ?? p._id.slice(0, 8) }) }}
+                            className="p-1.5 rounded-md hover:bg-blue-100 text-muted-foreground hover:text-blue-700 transition-colors"
+                            title="Exportovat data (GDPR)"
+                          >
+                            <FiDownload size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setGdprAction({ type: 'delete', id: p._id, name: p?.display_name ?? p._id.slice(0, 8) }) }}
+                            className="p-1.5 rounded-md hover:bg-red-100 text-muted-foreground hover:text-red-700 transition-colors"
+                            title="Smazat data (GDPR)"
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                       <FiChevronRight size={16} className="text-muted-foreground" />
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -297,6 +360,55 @@ export default function Dashboard({ patients, onSelectPatient, onRefreshPatients
           </Card>
         </div>
       </div>
+
+      {/* GDPR result notice */}
+      {gdprResult && (
+        <div className="fixed bottom-4 right-4 z-50 bg-card border border-border rounded-xl shadow-lg p-4 max-w-sm">
+          <div className="flex items-start gap-2">
+            <FiShield size={16} className="text-primary mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm">{gdprResult}</p>
+              <button onClick={() => setGdprResult(null)} className="text-xs text-muted-foreground hover:text-foreground mt-2">Zavrit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GDPR confirmation dialog */}
+      <Dialog open={!!gdprAction} onOpenChange={(open) => { if (!open) setGdprAction(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {gdprAction?.type === 'export' ? 'Export dat pacienta (GDPR)' : 'Smazat data pacienta (GDPR)'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {gdprAction?.type === 'export' ? (
+              <div>
+                <p className="text-sm">Exportovat vsechna data pacienta <strong>{gdprAction.name}</strong> ve formatu JSON (FHIR HL7 CZ Core)?</p>
+                <p className="text-xs text-muted-foreground mt-2">Zahrnuje: diagnozy, medikace, alergie, observace, navstevy a historii konzultaci. Pravo na prenositelnost udaju (cl. 20 GDPR).</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-destructive font-medium">Trvale smazat vsechna data pacienta <strong>{gdprAction?.name}</strong>?</p>
+                <p className="text-xs text-muted-foreground mt-2">Bude smazano: diagnozy, medikace, alergie, observace, navstevy, historie konzultaci. Audit logy budou anonymizovany. Tuto akci nelze vzit zpet. Pravo byt zapomenut (cl. 17 GDPR).</p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {gdprAction?.type === 'export' ? (
+                <Button onClick={() => gdprAction && handleGdprExport(gdprAction.id)} disabled={gdprLoading} className="flex-1">
+                  <FiDownload size={14} className="mr-1" /> {gdprLoading ? 'Exportuji...' : 'Exportovat'}
+                </Button>
+              ) : (
+                <Button onClick={() => gdprAction && handleGdprDelete(gdprAction.id)} disabled={gdprLoading} variant="destructive" className="flex-1">
+                  <FiTrash2 size={14} className="mr-1" /> {gdprLoading ? 'Mazani...' : 'Smazat trvale'}
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setGdprAction(null)} disabled={gdprLoading}>Zrusit</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

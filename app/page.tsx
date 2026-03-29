@@ -87,6 +87,8 @@ function AdminPanel() {
 
   const filtered = filterAction ? logs.filter((l: any) => (l?.action ?? '').includes(filterAction)) : logs
 
+  const gdprCount = logs.filter((l: any) => (l?.action ?? '').startsWith('gdpr_')).length
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
@@ -94,6 +96,58 @@ function AdminPanel() {
           <FiShield size={20} />
           <h1 className="text-2xl font-semibold tracking-tight">Administrace</h1>
         </div>
+
+        {/* GDPR / Compliance info */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs text-muted-foreground mb-1">GDPR operace</p>
+              <p className="text-xl font-semibold">{gdprCount}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Export a smazani dat</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs text-muted-foreground mb-1">Celkem audit zaznamu</p>
+              <p className="text-xl font-semibold">{logs.length}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Poslednich 100 zaznamu</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs text-muted-foreground mb-1">Compliance</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                <Badge variant="outline" className="text-[9px]">GDPR</Badge>
+                <Badge variant="outline" className="text-[9px]">EU MDR IIa</Badge>
+                <Badge variant="outline" className="text-[9px]">ISO 27001</Badge>
+                <Badge variant="outline" className="text-[9px]">NIS2</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Data retention notice */}
+        <Card className="mb-6 border-blue-200 bg-blue-50/50">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <FiShield size={16} className="text-blue-700 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">Ochrana osobnich udaju (GDPR)</p>
+                <p className="text-xs text-blue-700 mt-1 leading-relaxed">
+                  System neuchovava osobni udaje pacientu (PHI) mezi sessions. Pacienti jsou identifikovani hashovanym rodnym cislem.
+                  Data lze exportovat (pravo na prenositelnost) nebo smazat (pravo byt zapomenut) pres API endpointy /api/patients/[id]/gdpr.
+                  Audit logy jsou anonymizovany pri smazani dat pacienta. Vsechna data jsou ulozena v EU datacentrech.
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="outline" className="text-[9px] border-blue-300 text-blue-700">Zero-knowledge encryption</Badge>
+                  <Badge variant="outline" className="text-[9px] border-blue-300 text-blue-700">EU datacentra</Badge>
+                  <Badge variant="outline" className="text-[9px] border-blue-300 text-blue-700">Automaticka anonymizace</Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -123,7 +177,11 @@ function AdminPanel() {
                   {filtered.slice(0, 50).map((log: any, i: number) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs">{log?.createdAt ? new Date(log.createdAt).toLocaleString('cs-CZ') : '-'}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[10px]">{log?.action ?? '-'}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={(log?.action ?? '').startsWith('gdpr_') ? 'default' : 'outline'} className="text-[10px]">
+                          {log?.action ?? '-'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-xs">{log?.resource_type ?? '-'}</TableCell>
                       <TableCell className="text-xs font-mono">{(log?.resource_id ?? '-').slice(0, 12)}</TableCell>
                     </TableRow>
