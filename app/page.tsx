@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
 import { AuthProvider, ProtectedRoute, LoginForm, RegisterForm, UserMenu } from 'lyzr-architect/client'
 import { FiShield, FiUser, FiSearch } from 'react-icons/fi'
@@ -190,7 +192,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen gradient-bg text-foreground flex flex-col">
       <AppHeader />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
