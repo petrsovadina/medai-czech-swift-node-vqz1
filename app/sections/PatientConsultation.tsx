@@ -1,12 +1,11 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { FiSend, FiChevronDown, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiHeart, FiActivity, FiFileText, FiArrowLeft, FiShield, FiClock, FiInfo, FiEdit2 } from 'react-icons/fi'
+import { FiSend, FiChevronDown, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiHeart, FiActivity, FiFileText, FiArrowLeft, FiShield, FiClock, FiInfo } from 'react-icons/fi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { callAIAgent } from '@/lib/aiAgent'
 
 const AGENT_ID = '69c1bbdee2d1507b5eeec9b7'

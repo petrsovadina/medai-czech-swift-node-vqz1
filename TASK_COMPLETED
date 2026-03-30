@@ -1,0 +1,23 @@
+Czech MedAI (Benjamin) - Implementation Complete
+
+Agents:
+- Clinical Coordinator (Manager): 69c1bbdee2d1507b5eeec9b7
+- Patient Context Agent (Sub): 69c1bbbde2d1507b5eeec9b5
+- Medical Knowledge Agent (Sub): 69c1bbbeecb6bf10bad7dd48
+- Literature Research Agent (Independent): 69c1bbbe715110120e535d80
+
+Knowledge Base RAG ID: 69c1baefbea8db3412a6d28b
+Database: app_medai-czech-swift-node-vqz1
+
+Features Implemented:
+1. QuickConsult / DeepConsult with Czech UI
+2. Inline citations with PMID/DOI and A/B/C confidence tiers
+3. Patient-Centric FHIR HL7 CZ Core memory with Auto-capture (edit before save)
+4. Multi-agent Manager-Subagent architecture (4 agents)
+5. Czech data sources: SUKL, VZP, CLS JEP, UZIS
+6. 4-level urgency classification (URGENTNI/VYSOKA/STANDARDNI/INFORMACNI)
+7. Literature search with SynthMode cards
+8. Audit trail and GDPR compliance (export, deletion, anonymization)
+
+Safety: 5 absolute prohibitions, mandatory disclaimers, urgency auto-detection
+Multi-turn: Conversation history context for coherent follow-up questions
